@@ -1,5 +1,6 @@
 import sys
 import os
+import shutil
 from simple_term_menu import TerminalMenu
 from prompt_toolkit.shortcuts import input_dialog, message_dialog
 from prompt_toolkit.validation import Validator, ValidationError
@@ -46,15 +47,27 @@ def selectOption(path):
         sys.exit(1)
 
     menu = TerminalMenu(files, title="Select the Desired Save")
-    return menu.show()
+    return files[menu.show()]
 
 
 def main(arguments = []):
 
     path = arguments[0] if len(arguments) > 0 and os.path.isdir(arguments[0]) else grabPath()
     option = arguments[1] if len(arguments) > 1 else selectOption(path)
-    
+
     file_path = os.path.join(path, option)
+
+    BACKUP_FOLDER = "backups/"
+    WORKING_FOLDER = "working/"
+    if not os.path.exists(BACKUP_FOLDER):
+        os.mkdir(BACKUP_FOLDER)
+    if not os.path.exists(WORKING_FOLDER):
+        os.mkdir(WORKING_FOLDER)
+    
+    shutil.copy(file_path, BACKUP_FOLDER)
+    shutil.copy(file_path, WORKING_FOLDER)
+
+    file_path = os.path.join(WORKING_FOLDER, option)
 
 if __name__ == "__main__":
     main(sys.argv[1:])
