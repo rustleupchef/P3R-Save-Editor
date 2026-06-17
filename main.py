@@ -1,4 +1,3 @@
-from ntpath import isfile
 import sys
 import os
 import shutil
