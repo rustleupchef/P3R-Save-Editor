@@ -1,9 +1,61 @@
+from ntpath import isfile
 import sys
 import os
 import shutil
+from typing import Optional
 from simple_term_menu import TerminalMenu
 from prompt_toolkit.shortcuts import input_dialog, message_dialog
 from prompt_toolkit.validation import Validator, ValidationError
+
+def encryptedToGVAS(file_path, output_file) -> Optional[bytes]:
+    SAVE_KEY = b"ae5zeitaix1joowooNgie3fahP5Ohph"
+    KEY_LEN = len(SAVE_KEY)
+    
+    ENCRYPT_GVAS_MAGIC = 0x0B650015
+    DECRYPT_GVAS_MAGIC = 0x53415647
+
+    try:
+        with open(file_path, "rb") as f:
+            save_data = f.read()
+    except Exception as e:
+        print(f"Error reading file '{file_path}': {e}")
+        return None
+
+    filesize = len(save_data)
+    if filesize < 4:
+        print("Error: File is too small to be a valid save file.")
+        return None
+
+    file_magic = int.from_bytes(save_data[:4], byteorder="little")
+    
+    if file_magic == ENCRYPT_GVAS_MAGIC:
+        print(f"Detected encrypted save file (0x{file_magic:08x}). Decrypting...")
+        out_data = bytearray(filesize)
+        
+        for i in range(filesize):
+            b_var1 = (save_data[i] ^ SAVE_KEY[i % KEY_LEN]) & 0xFF
+            out_data[i] = (((b_var1 >> 4) & 3) | ((b_var1 & 3) << 4) | (b_var1 & 0xCC)) & 0xFF
+            
+    elif file_magic == DECRYPT_GVAS_MAGIC:
+        print(f"Detected decrypted save file (0x{file_magic:08x}). Encrypting...")
+        out_data = bytearray(filesize)
+        
+        for i in range(filesize):
+            temp = (((save_data[i] >> 4) & 3) | ((save_data[i] & 3) << 4) | (save_data[i] & 0xCC)) & 0xFF
+            out_data[i] = (temp ^ SAVE_KEY[i % KEY_LEN]) & 0xFF
+    else:
+        print(f"Error: Unknown save file magic (0x{file_magic:08x}).")
+        return None
+
+    try:
+        processed_bytes = bytes(out_data)
+        with open(output_file, "wb") as f:
+            f.write(processed_bytes)
+        print(f"Successfully wrote {len(processed_bytes)} bytes to '{output_file}'")
+        return processed_bytes
+    except Exception as e:
+        print(f"Error writing output file: {e}")
+        return None
 
 class DirectoryValidator(Validator):
     def validate(self, document):
@@ -71,6 +123,7 @@ def main(arguments = []):
     placeFiles(filePath, WORKING_FOLDER, BACKUP_FOLDER)
 
     filePath = os.path.join(WORKING_FOLDER, option)
+    encryptedToGVAS(filePath, f"{filePath}.data")
 
 if __name__ == "__main__":
     main(sys.argv[1:])
