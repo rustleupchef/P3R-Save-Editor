@@ -49,25 +49,28 @@ def selectOption(path):
     menu = TerminalMenu(files, title="Select the Desired Save")
     return files[menu.show()]
 
+def creatDirs(*paths):
+    for path in paths:
+        if not os.path.exists(path):
+            os.mkdir(path)
+
+def placeFiles(filePath, *paths):
+    for path in paths:
+        shutil.copy(filePath, path)
 
 def main(arguments = []):
 
     path = arguments[0] if len(arguments) > 0 and os.path.isdir(arguments[0]) else grabPath()
     option = arguments[1] if len(arguments) > 1 else selectOption(path)
 
-    file_path = os.path.join(path, option)
+    filePath = os.path.join(path, option)
 
     BACKUP_FOLDER = "backups/"
     WORKING_FOLDER = "working/"
-    if not os.path.exists(BACKUP_FOLDER):
-        os.mkdir(BACKUP_FOLDER)
-    if not os.path.exists(WORKING_FOLDER):
-        os.mkdir(WORKING_FOLDER)
-    
-    shutil.copy(file_path, BACKUP_FOLDER)
-    shutil.copy(file_path, WORKING_FOLDER)
+    creatDirs(BACKUP_FOLDER, WORKING_FOLDER)
+    placeFiles(filePath, WORKING_FOLDER, BACKUP_FOLDER)
 
-    file_path = os.path.join(WORKING_FOLDER, option)
+    filePath = os.path.join(WORKING_FOLDER, option)
 
 if __name__ == "__main__":
     main(sys.argv[1:])

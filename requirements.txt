@@ -1,4 +1,5 @@
 prompt_toolkit==3.0.52
+pycryptodome==3.15.0
 Pygments==2.20.0
 simple-term-menu==1.6.6
 wcwidth==0.8.1
