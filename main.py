@@ -16,31 +16,17 @@ linker = Linker(engine)
 linker.define_wasi()
 type_new = FuncType([], [ValType.externref()])
 linker.define(store, "./uesave_wasm_bg.js", "__wbg_new_227d7c05414eb861", Func(store, type_new, lambda: None))
-
-# 2. __wbg_stack... -> (func (param i32 externref))
 type_stack = FuncType([ValType.i32(), ValType.externref()], [])
 linker.define(store, "./uesave_wasm_bg.js", "__wbg_stack_3b0d974bbf31e44f", Func(store, type_stack, lambda a, b: None))
-
-# 3. __wbindgen_object_drop_contents -> (func (param i32))
 type_drop = FuncType([ValType.i32()], [])
 linker.define(store, "./uesave_wasm_bg.js", "__wbindgen_object_drop_contents", Func(store, type_drop, lambda a: None))
-
-# 4. __wbg_error... -> (func (param i32 i32))
-# Takes a string pointer and length from Rust to print out panic errors to the console
 type_error = FuncType([ValType.i32(), ValType.i32()], [])
 linker.define(store, "./uesave_wasm_bg.js", "__wbg_error_a6fa202b58aa1cd3", Func(store, type_error, lambda a, b: None))
-
-# 5. __wbindgen_init_externref_table -> (func)
-# Initializes the internal allocation table for references; takes no params and returns nothing
 type_init_table = FuncType([], [])
 linker.define(store, "./uesave_wasm_bg.js", "__wbindgen_init_externref_table", Func(store, type_init_table, lambda: None))
-
-# 6. __wbindgen_cast... -> (func (param i32 i32) (result externref))
-# Casts internal pointers safely across boundaries
 type_cast = FuncType([ValType.i32(), ValType.i32()], [ValType.externref()])
 linker.define(store, "./uesave_wasm_bg.js", "__wbindgen_cast_0000000000000001", Func(store, type_cast, lambda a, b: None))
 instance = linker.instantiate(store, module)
-
 memory = instance.exports(store)["memory"]
 allocate_func = instance.exports(store).get("__wbindgen_malloc")
 free_func = instance.exports(store).get("__wbindgen_free")
@@ -136,11 +122,10 @@ def gvasToJson(file_path, output_file):
         print(f"Error parsing WebAssembly return configuration: {e}")
         raise e
     finally:
-        # Clean up the original input buffer data layout safely
         try:
             free_func(store, ptr, size, 1)
         except Exception:
-            pass # Prevent cascading traps if the engine is already panicked
+            pass
 
 class DirectoryValidator(Validator):
     def validate(self, document):
@@ -172,6 +157,27 @@ def grabPath():
             text=f"Invalid path:\n{path}\n\nPlease try again.",
         ).run()
 
+# TODO: Implement a assisted edit feature
+def assistedEdit(file_path):
+    pass
+
+def edit(file_path):
+    options = ["assisted", "manually"]
+    menu = TerminalMenu(
+        options,
+        title="Select Your Desired Editing Mode"
+    )
+    manual = bool(menu.show())
+
+    if not manual:
+        assistedEdit(file_path)
+        return
+    
+    menu = TerminalMenu(
+        ["Confirm"],
+        title = "Press the Confirm Option When You Are Finished Editing"
+    )
+    menu.show()
 
 def selectOption(path):
     files = [
@@ -210,6 +216,7 @@ def main(arguments = []):
     filePath = os.path.join(WORKING_FOLDER, option)
     encryptedToGVAS(filePath, f"{filePath}.data")
     gvasToJson(f"{filePath}.data", f"{filePath}.json")
+    edit(f"{filePath}.json")
 
 if __name__ == "__main__":
     main(sys.argv[1:])
