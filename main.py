@@ -1,10 +1,49 @@
 import sys
 import os
 import shutil
+import json
 from typing import Optional
+from wasmtime import Engine, Store, Module, Linker, FuncType, ValType, Func
 from simple_term_menu import TerminalMenu
 from prompt_toolkit.shortcuts import input_dialog, message_dialog
 from prompt_toolkit.validation import Validator, ValidationError
+
+engine = Engine()
+store = Store(engine)
+wasm_path = os.path.join("uesave", "uesave_wasm_bg.wasm")
+module = Module.from_file(engine, wasm_path)
+linker = Linker(engine)
+linker.define_wasi()
+type_new = FuncType([], [ValType.externref()])
+linker.define(store, "./uesave_wasm_bg.js", "__wbg_new_227d7c05414eb861", Func(store, type_new, lambda: None))
+
+# 2. __wbg_stack... -> (func (param i32 externref))
+type_stack = FuncType([ValType.i32(), ValType.externref()], [])
+linker.define(store, "./uesave_wasm_bg.js", "__wbg_stack_3b0d974bbf31e44f", Func(store, type_stack, lambda a, b: None))
+
+# 3. __wbindgen_object_drop_contents -> (func (param i32))
+type_drop = FuncType([ValType.i32()], [])
+linker.define(store, "./uesave_wasm_bg.js", "__wbindgen_object_drop_contents", Func(store, type_drop, lambda a: None))
+
+# 4. __wbg_error... -> (func (param i32 i32))
+# Takes a string pointer and length from Rust to print out panic errors to the console
+type_error = FuncType([ValType.i32(), ValType.i32()], [])
+linker.define(store, "./uesave_wasm_bg.js", "__wbg_error_a6fa202b58aa1cd3", Func(store, type_error, lambda a, b: None))
+
+# 5. __wbindgen_init_externref_table -> (func)
+# Initializes the internal allocation table for references; takes no params and returns nothing
+type_init_table = FuncType([], [])
+linker.define(store, "./uesave_wasm_bg.js", "__wbindgen_init_externref_table", Func(store, type_init_table, lambda: None))
+
+# 6. __wbindgen_cast... -> (func (param i32 i32) (result externref))
+# Casts internal pointers safely across boundaries
+type_cast = FuncType([ValType.i32(), ValType.i32()], [ValType.externref()])
+linker.define(store, "./uesave_wasm_bg.js", "__wbindgen_cast_0000000000000001", Func(store, type_cast, lambda a, b: None))
+instance = linker.instantiate(store, module)
+
+memory = instance.exports(store)["memory"]
+allocate_func = instance.exports(store).get("__wbindgen_malloc")
+free_func = instance.exports(store).get("__wbindgen_free")
 
 def encryptedToGVAS(file_path, output_file) -> Optional[bytes]:
     SAVE_KEY = b"ae5zeitaix1joowooNgie3fahP5Ohph"
@@ -55,6 +94,53 @@ def encryptedToGVAS(file_path, output_file) -> Optional[bytes]:
     except Exception as e:
         print(f"Error writing output file: {e}")
         return None
+
+def gvasToJson(file_path, output_file):
+    gvas_to_json_func = instance.exports(store).get("sav_to_json")
+
+    with open(file_path, "rb") as file:
+        gvas_bytes = file.read()
+    
+    size = len(gvas_bytes)
+    ptr = allocate_func(store, size, 1)
+
+    try:
+        memory.write(store, gvas_bytes, ptr)
+        result = gvas_to_json_func(store, ptr, size)
+        
+        if isinstance(result, list) or isinstance(result, tuple):
+            json_data_ptr = result[0]
+            json_data_len = result[1]
+        elif hasattr(result, "value"):
+            json_data_ptr = result.value
+            json_data_len = size * 2
+        else:
+            json_data_ptr = int(result)
+            length_bytes = memory.read(store, json_data_ptr + 4, json_data_ptr + 8)
+            json_data_len = int.from_bytes(length_bytes, byteorder='little')
+            
+            ptr_bytes = memory.read(store, json_data_ptr, json_data_ptr + 4)
+            json_data_ptr = int.from_bytes(ptr_bytes, byteorder='little')
+
+        raw_json_bytes = memory.read(store, json_data_ptr, json_data_ptr + json_data_len)
+        json_data = raw_json_bytes.decode("utf-8")
+
+        free_func(store, json_data_ptr, json_data_len, 1)
+
+        with open(output_file, "w", encoding="utf-8") as file:
+            file.write(json_data)
+            
+        return json_data
+        
+    except Exception as e:
+        print(f"Error parsing WebAssembly return configuration: {e}")
+        raise e
+    finally:
+        # Clean up the original input buffer data layout safely
+        try:
+            free_func(store, ptr, size, 1)
+        except Exception:
+            pass # Prevent cascading traps if the engine is already panicked
 
 class DirectoryValidator(Validator):
     def validate(self, document):
@@ -123,6 +209,7 @@ def main(arguments = []):
 
     filePath = os.path.join(WORKING_FOLDER, option)
     encryptedToGVAS(filePath, f"{filePath}.data")
+    gvasToJson(f"{filePath}.data", f"{filePath}.json")
 
 if __name__ == "__main__":
     main(sys.argv[1:])
