@@ -127,6 +127,54 @@ def gvasToJson(file_path, output_file):
         except Exception:
             pass
 
+def jsonToGvas(file_path, output_file):
+    json_to_gvas_func = instance.exports(store).get("json_to_sav")
+
+    with open(file_path, "r", encoding="utf-8") as file:
+        json_str = file.read()
+    
+    json_bytes = json_str.encode("utf-8")
+    size = len(json_bytes)
+    ptr = allocate_func(store, size, 1)
+
+    try:
+        memory.write(store, json_bytes, ptr)
+        
+        result = json_to_gvas_func(store, ptr, size)
+        
+        if isinstance(result, list) or isinstance(result, tuple):
+            gvas_data_ptr = result[0]
+            gvas_data_len = result[1]
+        elif hasattr(result, "value"): 
+            gvas_data_ptr = result.value
+            gvas_data_len = size * 2
+        else:
+            gvas_data_ptr = int(result)
+            length_bytes = memory.read(store, gvas_data_ptr + 4, gvas_data_ptr + 8)
+            gvas_data_len = int.from_bytes(length_bytes, byteorder='little')
+            
+            ptr_bytes = memory.read(store, gvas_data_ptr, gvas_data_ptr + 4)
+            gvas_data_ptr = int.from_bytes(ptr_bytes, byteorder='little')
+
+        gvas_bytes = memory.read(store, gvas_data_ptr, gvas_data_ptr + gvas_data_len)
+
+        free_func(store, gvas_data_ptr, gvas_data_len, 1)
+
+        with open(output_file, "wb") as file:
+            file.write(gvas_bytes)
+            
+        print(f"Successfully repacked {len(gvas_bytes)} bytes into '{output_file}'")
+        return gvas_bytes
+        
+    except Exception as e:
+        print(f"Error packing JSON data to WebAssembly format: {e}")
+        raise e
+    finally:
+        try:
+            free_func(store, ptr, size, 1)
+        except Exception:
+            pass
+
 class DirectoryValidator(Validator):
     def validate(self, document):
         path = os.path.expanduser(document.text.strip())
@@ -217,6 +265,8 @@ def main(arguments = []):
     encryptedToGVAS(filePath, f"{filePath}.data")
     gvasToJson(f"{filePath}.data", f"{filePath}.json")
     edit(f"{filePath}.json")
+    jsonToGvas(f"{filePath}.json", f"{filePath}.data")
+    encryptedToGVAS(f"{filePath}.data", filePath)
 
 if __name__ == "__main__":
     main(sys.argv[1:])
