@@ -7,8 +7,8 @@ pycryptodome==3.15.0
 pydantic==2.13.4
 pydantic_core==2.46.4
 Pygments==2.20.0
-SavConverter==0.1.1
 simple-term-menu==1.6.6
 typing-inspection==0.4.2
 typing_extensions==4.15.0
+wasmtime==45.0.0
 wcwidth==0.8.1
