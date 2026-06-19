@@ -19,8 +19,8 @@ Once into to boot you will be hit with a couple steps:
  - Enter in the path of the folder that you will be pulling from
  - Then navigate the terminal menu to select which file from the folder you desire to edit
  - Then you wil get two options for your editing mode
-    - Assisted Mode: This will guide you through the process to ensure you don't make mistakes (This has not been implemented yet)
-    - Manual Mode: This will prompt another screen asking you to hit enter when you are ready. If you do this simply edit the json as you please and hit enter when you feel as though you are done
+    - Assisted Mode: This will guide you through the process to ensure you don't make mistakes by giving you a easy ui to work with
+    - Manual Mode: This will prompt another screen asking you to hit enter when you are ready. If you do this simply edit the json as you please and hit enter when you feel as though you are done. This can also be good if you don't nessecarily want to edit the json data and you can just immediately hit confirm
 
 And after all of that, you will be finished with the process.
 
@@ -34,3 +34,11 @@ The folder structure is as so
     - This contains the web assembly compiled code for the gvas to json conversion; this allows the software to have one set of compiled files for nearly every os
  - working/
     - This contains all the generated files during the runtime of the code. The final product will also be deposited in this folder with the file extension .sav at the every end (Note that other files will have .sav in the name but none accept the product file will have it at the very end)
+
+Noteworthy files:
+
+ - main.py
+   - This contains all the data for actually running the main program
+ - editor.py
+   - this is piece of code used for the assisted editing. It opens up a ui
+   - when in assisted editing mode it will automatically load the file for you, but by default when run without any CLI parameters it gives you the option to open a json file
