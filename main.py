@@ -1,3 +1,4 @@
+import subprocess
 import sys
 import os
 import shutil
@@ -205,9 +206,9 @@ def grabPath():
             text=f"Invalid path:\n{path}\n\nPlease try again.",
         ).run()
 
-# TODO: Implement a assisted edit feature
 def assistedEdit(file_path):
-    pass
+    subprocess.run(["python", "editor.py", f"{file_path}"])
+
 
 def edit(file_path):
     options = ["assisted", "manually"]
